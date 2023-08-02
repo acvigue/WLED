@@ -25,10 +25,6 @@ class FibonacciUsermod : public Usermod {
 
         setBits(hours, 0x01);
         setBits(minutes, 0x02);
-
-        for (int i = 0; i < 5; i++) {
-            setPixel(i, colors[0][bits[i]]);
-        }
     }
 
     void setBits(byte value, byte offset) {
