@@ -47,8 +47,8 @@ class WordClockUsermodEng : public Usermod {
         }
 
         // display it is if activated
-        if(displayItIs) {
-          output += "IT IS";
+        if (displayItIs) {
+            output += "IT IS";
         }
 
         if (minutes != 0) {
@@ -202,10 +202,29 @@ class WordClockUsermodEng : public Usermod {
             output += " MIDNIGHT";
         }
 
+        if (output.indexOf("MIDNIGHT") == -1) {
+            if (hour < 5) {
+                output += " AT NIGHT";
+            } else if (hour < 12) {
+                output += " IN THE MORNING";
+            } else if (hour < 17) {
+                output += " IN THE AFTERNOON";
+            } else if (hour < 21) {
+                output += " IN THE EVENING";
+            } else {
+                output += " AT NIGHT";
+            }
+        }
+
+        if (!displayItIs) {
+            output = output.substring(1);
+        }
+
         Serial.println(output);
 
         int lastLetterPos = 0;
         String processingString = output;
+        int i = 0;
         while (true) {
             int pos = processingString.indexOf(" ");
             if (pos == -1) {
@@ -222,15 +241,12 @@ class WordClockUsermodEng : public Usermod {
                 lastLetterPos += letterPos;
             }
 
-            if (pos >= output.length()) {
+            if (pos >= output.length() - 2 || i > 10) {
                 break;
             }
 
             processingString = processingString.substring(pos + 1);
-        }
-
-        if(!displayItIs) {
-          output = output.substring(1);
+            i++;
         }
     }
 
@@ -277,7 +293,7 @@ class WordClockUsermodEng : public Usermod {
      * Commonly used for custom clocks (Cronixie, 7 segment)
      */
     void handleOverlayDraw() {
-        if (usermodActive == true) {
+        if (usermodActive == true && toki.getTimeSource() >= TOKI_TS_SEC) {
             if (minute(localTime) != lastMinute) {
                 updateDisplay(hour(localTime), minute(localTime));
                 lastMinute = minute(localTime);
