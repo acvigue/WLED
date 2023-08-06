@@ -147,6 +147,9 @@ class WordClockUsermodEng : public Usermod {
                 case 29:
                     output += " TWENTY NINE";
                     break;
+                case 30:
+                    output += " HALF";
+                    break;
             }
 
             // add past or to
