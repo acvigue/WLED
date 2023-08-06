@@ -177,6 +177,10 @@
   #include "../usermods/fibonacci/fibonacci.h"
 #endif
 
+#ifdef USERMOD_WORDCLOCK_ENG
+  #include "../usermods/usermod_v2_word_clock_eng/usermod_v2_word_clock_eng.h"
+#endif
+
 #ifdef USERMOD_BOBLIGHT
   #include "../usermods/boblight/boblight.h"
 #endif
@@ -348,6 +352,10 @@ void registerUsermods()
 
   #ifdef USERMOD_FIBONACCI
   usermods.add(new FibonacciUsermod());
+  #endif
+
+  #ifdef USERMOD_WORDCLOCK_ENG
+  usermods.add(new WordClockUsermodEng());
   #endif
 
   #ifdef USERMOD_ADS1115
