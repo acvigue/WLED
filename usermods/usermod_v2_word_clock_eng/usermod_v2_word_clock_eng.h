@@ -20,7 +20,6 @@ class WordClockUsermodEng : public Usermod {
 
     bool usermodActive = false;
     bool displayItIs = false;
-    String output = "";
 
 // defines for mask sizes
 #define maskSizeLeds 256
@@ -40,7 +39,7 @@ class WordClockUsermodEng : public Usermod {
 
     // update the display
     void updateDisplay(uint8_t hour, uint8_t minutes) {
-        output = "";
+        std::vector<std::string> output;
         // disable complete matrix at the bigging
         for (int x = 0; x < maskSizeLeds; x++) {
             maskLedsOn[x] = 0;
@@ -48,7 +47,8 @@ class WordClockUsermodEng : public Usermod {
 
         // display it is if activated
         if (displayItIs) {
-            output += "IT IS";
+            output.push_back("IT");
+            output.push_back("IS");
         }
 
         if (minutes != 0) {
@@ -58,105 +58,115 @@ class WordClockUsermodEng : public Usermod {
             }
             switch (mintemp) {
                 case 0:
-                    output += " HALF";
+                    output.push_back("HALF");
                     break;
                 case 1:
-                    output += " ONE";
+                    output.push_back("ONE");
                     break;
                 case 2:
-                    output += " TWO";
+                    output.push_back("TWO");
                     break;
                 case 3:
-                    output += " THREE";
+                    output.push_back("THREE");
                     break;
                 case 4:
-                    output += " FOUR";
+                    output.push_back("FOUR");
                     break;
                 case 5:
-                    output += " FIVE";
+                    output.push_back("FIVE");
                     break;
                 case 6:
-                    output += " SIX";
+                    output.push_back("SIX");
                     break;
                 case 7:
-                    output += " SEVEN";
+                    output.push_back("SEVEN");
                     break;
                 case 8:
-                    output += " EIGHT";
+                    output.push_back("EIGHT");
                     break;
                 case 9:
-                    output += " NINE";
+                    output.push_back("NINE");
                     break;
                 case 10:
-                    output += " TEN";
+                    output.push_back("TEN");
                     break;
                 case 11:
-                    output += " ELEVEN";
+                    output.push_back("ELEVEN");
                     break;
                 case 12:
-                    output += " TWELVE";
+                    output.push_back("TWELVE");
                     break;
                 case 13:
-                    output += " THIRTEEN";
+                    output.push_back("THIRTEEN");
                     break;
                 case 14:
-                    output += " FOURTEEN";
+                    output.push_back("FOURTEEN");
                     break;
                 case 15:
-                    output += " A QUARTER";
+                    output.push_back("A");
+                    output.push_back("QUARTER");
                     break;
                 case 16:
-                    output += " SIXTEEN";
+                    output.push_back("SIXTEEN");
                     break;
                 case 17:
-                    output += " SEVENTEEN";
+                    output.push_back("SEVENTEEN");
                     break;
                 case 18:
-                    output += " EIGHTEEN";
+                    output.push_back("EIGHTEEN");
                     break;
                 case 19:
-                    output += " NINETEEN";
+                    output.push_back("NINETEEN");
                     break;
                 case 20:
-                    output += " TWENTY";
+                    output.push_back("TWENTY");
                     break;
                 case 21:
-                    output += " TWENTY ONE";
+                    output.push_back("TWENTY");
+                    output.push_back("ONE");
                     break;
                 case 22:
-                    output += " TWENTY TWO";
+                    output.push_back("TWENTY");
+                    output.push_back("TWO");
                     break;
                 case 23:
-                    output += " TWENTY THREE";
+                    output.push_back("TWENTY");
+                    output.push_back("THREE");
                     break;
                 case 24:
-                    output += " TWENTY FOUR";
+                    output.push_back("TWENTY");
+                    output.push_back("FOUR");
                     break;
                 case 25:
-                    output += " TWENTY FIVE";
+                    output.push_back("TWENTY");
+                    output.push_back("FIVE");
                     break;
                 case 26:
-                    output += " TWENTY SIX";
+                    output.push_back("TWENTY");
+                    output.push_back("SIX");
                     break;
                 case 27:
-                    output += " TWENTY SEVEN";
+                    output.push_back("TWENTY");
+                    output.push_back("SEVEN");
                     break;
                 case 28:
-                    output += " TWENTY EIGHT";
+                    output.push_back("TWENTY");
+                    output.push_back("EIGHT");
                     break;
                 case 29:
-                    output += " TWENTY NINE";
+                    output.push_back("TWENTY");
+                    output.push_back("NINE");
                     break;
                 case 30:
-                    output += " HALF";
+                    output.push_back("HALF");
                     break;
             }
 
             // add past or to
             if (minutes <= 30) {
-                output += " PAST";
+                output.push_back("PAST");
             } else {
-                output += " TO";
+                output.push_back("TO");
                 hour++;
             }
         }
@@ -165,91 +175,77 @@ class WordClockUsermodEng : public Usermod {
         if (hour != 0) {
             switch (hour % 12) {
                 case 0:
-                    output += " TWELVE";
+                    output.push_back("TWELVE");
                     break;
                 case 1:
-                    output += " ONE";
+                    output.push_back("ONE");
                     break;
                 case 2:
-                    output += " TWO";
+                    output.push_back("TWO");
                     break;
                 case 3:
-                    output += " THREE";
+                    output.push_back("THREE");
                     break;
                 case 4:
-                    output += " FOUR";
+                    output.push_back("FOUR");
                     break;
                 case 5:
-                    output += " FIVE";
+                    output.push_back("FIVE");
                     break;
                 case 6:
-                    output += " SIX";
+                    output.push_back("SIX");
                     break;
                 case 7:
-                    output += " SEVEN";
+                    output.push_back("SEVEN");
                     break;
                 case 8:
-                    output += " EIGHT";
+                    output.push_back("EIGHT");
                     break;
                 case 9:
-                    output += " NINE";
+                    output.push_back("NINE");
                     break;
                 case 10:
-                    output += " TEN";
+                    output.push_back("TEN");
                     break;
                 case 11:
-                    output += " ELEVEN";
+                    output.push_back("ELEVEN");
                     break;
             }
         } else {
-            output += " MIDNIGHT";
+            output.push_back("MIDNIGHT");
         }
 
-        if (output.indexOf("MIDNIGHT") == -1) {
-            if (hour < 5) {
-                output += " AT NIGHT";
+        if (hour != 0 || minute != 0) {
+            if (hour < 5 || hour >= 21) {
+                output.push_back("AT");
+                output.push_back("NIGHT");
             } else if (hour < 12) {
-                output += " IN THE MORNING";
+                output.push_back("IN");
+                output.push_back("THE");
+                output.push_back("MORNING");
             } else if (hour < 17) {
-                output += " IN THE AFTERNOON";
+                output.push_back("IN");
+                output.push_back("THE");
+                output.push_back("AFTERNOON");
             } else if (hour < 21) {
-                output += " IN THE EVENING";
-            } else {
-                output += " AT NIGHT";
+                output.push_back("IN");
+                output.push_back("THE");
+                output.push_back("EVENING");
             }
         }
-
-        if (!displayItIs) {
-            output = output.substring(1);
-        }
-
-        Serial.println(output);
 
         int lastLetterPos = 0;
-        String processingString = output;
-        int i = 0;
-        while (true) {
-            int pos = processingString.indexOf(" ");
-            if (pos == -1) {
-                pos = output.length();
-            }
-            String word = processingString.substring(0, pos);
-
+        for (int i = 0; i < output.size(); i++) {
+            std::string word = output[i];
             String lettersTmp = letters.substring(lastLetterPos);
-            int letterPos = lettersTmp.indexOf(word);
-            if (letterPos != -1) {
+
+            int wordStartPos = lettersTmp.indexOf(word.c_str());
+            if (wordStartPos != -1) {
                 for (int i = 0; i < word.length(); i++) {
-                    maskLedsOn[i + letterPos + lastLetterPos] = 1;
+                    maskLedsOn[i + wordStartPos + lastLetterPos] = 1;
                 }
-                lastLetterPos += letterPos;
+                lastLetterPos += wordStartPos;
             }
-
-            if (pos >= output.length() - 2 || i > 10) {
-                break;
-            }
-
-            processingString = processingString.substring(pos + 1);
-            i++;
         }
     }
 
@@ -258,15 +254,13 @@ class WordClockUsermodEng : public Usermod {
 
     void connected() {}
 
-    void loop() {}
-
-    void addToJsonInfo(JsonObject& root) {
-        JsonObject user = root["u"];
-        if (user.isNull()) user = root.createNestedObject("u");
-
-        JsonArray infoArr = user.createNestedArray(F("WordClockUsermodEng"));
-
-        if (usermodActive) infoArr.add(output);
+    void loop() {
+        if (usermodActive == true && toki.getTimeSource() >= TOKI_TS_SEC) {
+            if (minute(localTime) != lastMinute) {
+                updateDisplay(hour(localTime), minute(localTime));
+                lastMinute = minute(localTime);
+            }
+        }
     }
 
     void addToJsonState(JsonObject& root) {}
@@ -296,12 +290,7 @@ class WordClockUsermodEng : public Usermod {
      * Commonly used for custom clocks (Cronixie, 7 segment)
      */
     void handleOverlayDraw() {
-        if (usermodActive == true && toki.getTimeSource() >= TOKI_TS_SEC) {
-            if (minute(localTime) != lastMinute) {
-                updateDisplay(hour(localTime), minute(localTime));
-                lastMinute = minute(localTime);
-            }
-
+        if (usermodActive && toki.getTimeSource() >= TOKI_TS_SEC) {
             for (int y = 0; y < 16; y++) {
                 for (int x = 0; x < 16; x++) {
                     if (maskLedsOn[(y * 16) + x] == 0) {
