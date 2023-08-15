@@ -210,6 +210,9 @@ class WordClockUsermodEng : public Usermod {
                 case 11:
                     output.push_back("ELEVEN");
                     break;
+                case 12:
+                    output.push_back("TWELVE");
+                    break;
             }
         } else {
             output.push_back("MIDNIGHT");
