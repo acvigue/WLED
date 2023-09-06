@@ -219,7 +219,7 @@ class WordClockUsermodEng : public Usermod {
         }
 
         if (hour != 0 || minute != 0) {
-            if (hour < 5 || hour >= 21) {
+            if (hour >= 21) {
                 output.push_back("AT");
                 output.push_back("NIGHT");
             } else if (hour < 12) {
@@ -247,7 +247,7 @@ class WordClockUsermodEng : public Usermod {
                 for (int i = 0; i < word.length(); i++) {
                     maskLedsOn[i + wordStartPos + lastLetterPos] = 1;
                 }
-                lastLetterPos += wordStartPos;
+                lastLetterPos += (wordStartPos + word.length());
             }
         }
     }
