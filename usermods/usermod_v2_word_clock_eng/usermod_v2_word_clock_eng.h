@@ -172,7 +172,7 @@ class WordClockUsermodEng : public Usermod {
         }
 
         // add hour
-        if (hour != 0) {
+        if (hour != 0 || minutes != 0) {
             switch (hour % 12) {
                 case 0:
                     output.push_back("TWELVE");
@@ -214,12 +214,8 @@ class WordClockUsermodEng : public Usermod {
                     output.push_back("TWELVE");
                     break;
             }
-        } else {
-            output.push_back("MIDNIGHT");
-        }
 
-        if (hour != 0 || minute != 0) {
-            if (hour >= 21) {
+            if (hour >= 21 || hour == 0) {
                 output.push_back("AT");
                 output.push_back("NIGHT");
             } else if (hour < 12) {
@@ -235,6 +231,8 @@ class WordClockUsermodEng : public Usermod {
                 output.push_back("THE");
                 output.push_back("EVENING");
             }
+        } else {
+            output.push_back("MIDNIGHT");
         }
 
         int lastLetterPos = 0;
