@@ -835,7 +835,7 @@ function populateSegments(s)
 	}
 	if (segCount < 2) {
 		gId(`segd${lSeg}`).classList.add("hide");
-		gId(`segp0`).classList.add("hide");
+		if (parseInt(gId("seg0bri").value)==255) gId(`segp0`).classList.add("hide");
 	}
 	if (!isM && !noNewSegs && (cfg.comp.seglen?parseInt(gId(`seg${lSeg}s`).value):0)+parseInt(gId(`seg${lSeg}e`).value)<ledCount) gId(`segr${lSeg}`).classList.remove("hide");
 	gId('segutil2').style.display = (segCount > 1) ? "block":"none"; // rsbtn parent
@@ -1248,7 +1248,7 @@ function updateSelectedPalette(s)
 	if (s > 1 && s < 6) {
 		cd[0].classList.remove('hide'); // * Color 1
 		if (s > 2) cd[1].classList.remove('hide'); // * Color 1 & 2
-		if (s == 5) cd[2].classList.remove('hide'); // all colors
+		if (s > 3) cd[2].classList.remove('hide'); // all colors
 	} else {
 		for (let i of cd) if (i.dataset.hide == '1') i.classList.add('hide');
 	}

@@ -168,9 +168,11 @@ bool Segment::allocateData(size_t len) {
   if (data && _dataLen == len) return true; //already allocated
   //DEBUG_PRINTF("--   Allocating data (%d): %p\n", len, this);
   deallocateData();
+  if (len == 0) return(false); // nothing to do
   if (Segment::getUsedSegmentData() + len > MAX_SEGMENT_DATA) {
     // not enough memory
-    DEBUG_PRINTF("!!! Effect RAM depleted: %d/%d !!!\n", len, Segment::getUsedSegmentData());
+    DEBUG_PRINT(F("!!! Effect RAM depleted: "));
+    DEBUG_PRINTF("%d/%d !!!\n", len, Segment::getUsedSegmentData());
     return false;
   }
   // do not use SPI RAM on ESP32 since it is slow
@@ -184,11 +186,18 @@ bool Segment::allocateData(size_t len) {
 }
 
 void Segment::deallocateData() {
-  if (!data) return;
+  if (!data) { _dataLen = 0; return; }
   //DEBUG_PRINTF("---  Released data (%p): %d/%d -> %p\n", this, _dataLen, Segment::getUsedSegmentData(), data);
-  free(data);
+  if ((Segment::getUsedSegmentData() > 0) && (_dataLen > 0)) { // check that we don't have a dangling / inconsistent data pointer
+    free(data);
+  } else {
+    DEBUG_PRINT(F("---- Released data "));
+    DEBUG_PRINTF("(%p): ", this);
+    DEBUG_PRINT(F("inconsistent UsedSegmentData "));
+    DEBUG_PRINTF("(%d/%d)", _dataLen, Segment::getUsedSegmentData());
+    DEBUG_PRINTLN(F(", cowardly refusing to free nothing."));
+  }
   data = nullptr;
-  // WARNING it looks like we have a memory leak somewhere
   Segment::addUsedSegmentData(_dataLen <= Segment::getUsedSegmentData() ? -_dataLen : -Segment::getUsedSegmentData());
   _dataLen = 0;
 }
@@ -338,6 +347,7 @@ void Segment::stopTransition() {
       //DEBUG_PRINTF("--  Released duplicate data (%d): %p\n", _t->_segT._dataLenT, _t->_segT._dataT);
       free(_t->_segT._dataT);
       _t->_segT._dataT = nullptr;
+      _t->_segT._dataLenT = 0;
     }
     #endif
     delete _t;
@@ -362,7 +372,6 @@ uint16_t Segment::progress() {
 
 #ifndef WLED_DISABLE_MODE_BLEND
 void Segment::swapSegenv(tmpsegd_t &tmpSeg) {
-  if (!_t) return;
   //DEBUG_PRINTF("--  Saving temp seg: %p (%p)\n", this, tmpSeg);
   tmpSeg._optionsT   = options;
   for (size_t i=0; i<NUM_COLORS; i++) tmpSeg._colorT[i] = colors[i];
@@ -380,7 +389,7 @@ void Segment::swapSegenv(tmpsegd_t &tmpSeg) {
   tmpSeg._callT      = call;
   tmpSeg._dataT      = data;
   tmpSeg._dataLenT   = _dataLen;
-  if (&tmpSeg != &(_t->_segT)) {
+  if (_t && &tmpSeg != &(_t->_segT)) {
     // swap SEGENV with transitional data
     options   = _t->_segT._optionsT;
     for (size_t i=0; i<NUM_COLORS; i++) colors[i] = _t->_segT._colorT[i];
@@ -1564,7 +1573,7 @@ void WS2812FX::purgeSegments(bool force) {
     }
   if (deleted) {
     _segments.shrink_to_fit();
-    if (_mainSegment >= _segments.size()) setMainSegmentId(0);
+    /*if (_mainSegment >= _segments.size())*/ setMainSegmentId(0);
   }
 }
 
