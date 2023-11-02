@@ -247,7 +247,7 @@ class WordClockUsermodEng : public Usermod {
                 }
                 lastLetterPos += (wordStartPos + word.length());
                 bool lastLetterEOL = (lastLetterPos + 1) % 16 == 0;
-                if(lastLetterEOL) {
+                if(!lastLetterEOL) {
                     lastLetterPos++;
                 }
             }
