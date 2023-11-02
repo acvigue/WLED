@@ -246,6 +246,10 @@ class WordClockUsermodEng : public Usermod {
                     maskLedsOn[i + wordStartPos + lastLetterPos] = 1;
                 }
                 lastLetterPos += (wordStartPos + word.length());
+                bool lastLetterEOL = (lastLetterPos + 1) % 16 == 0;
+                if(lastLetterEOL) {
+                    lastLetterPos++;
+                }
             }
         }
     }
