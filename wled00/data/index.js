@@ -27,7 +27,7 @@ var cfg = {
 	theme:{base:"dark", bg:{url:"", rnd: false, rndGrayscale: false, rndBlur: false}, alpha:{bg:0.6,tab:0.8}, color:{bg:""}},
 	comp :{colors:{picker: true, rgb: false, quick: true, hex: false},
 		  labels:true, pcmbot:false, pid:true, seglen:false, segpwr:false, segexp:false,
-		  css:true, hdays:false, fxdef:true, on:0, off:0}
+		  css:true, hdays:false, fxdef:true, on:0, off:0, idsort: false}
 };
 var hol = [
 	[0,11,24,4,"https://aircoookie.github.io/xmas.png"], // christmas
@@ -218,13 +218,11 @@ function onLoad()
 		// detect reverse proxy and/or HTTPS
 		let pathn = l.pathname;
 		let paths = pathn.slice(1,pathn.endsWith('/')?-1:undefined).split("/");
-		//if (paths[0]==="sliders") paths.shift();
-		//while (paths[0]==="") paths.shift();
 		locproto = l.protocol;
 		locip = l.hostname + (l.port ? ":" + l.port : "");
 		if (paths.length > 0 && paths[0]!=="") {
 			loc = true;
-			locip +=  "/" + paths[0];
+			locip +=  "/" + paths.join('/');
 		} else if (locproto==="https:") {
 			loc = true;
 		}
@@ -234,6 +232,7 @@ function onLoad()
 
 	tooltip();
 	resetPUtil();
+	initFilters();
 
 	if (localStorage.getItem('pcm') == "true" || (!/Mobi/.test(navigator.userAgent) && localStorage.getItem('pcm') == null)) togglePcMode(true);
 	applyCfg();
@@ -284,11 +283,10 @@ function onLoad()
 	d.addEventListener("visibilitychange", handleVisibilityChange, false);
 	//size();
 	gId("cv").style.opacity=0;
-	var sls = d.querySelectorAll('input[type="range"]');
-	for (var sl of sls) {
+	d.querySelectorAll('input[type="range"]').forEach((sl)=>{
 		sl.addEventListener('touchstart', toggleBubble);
 		sl.addEventListener('touchend', toggleBubble);
-	}
+	});
 }
 
 function updateTablinks(tabI)
@@ -582,8 +580,7 @@ function populatePresets(fromls)
 	if (!pJson) {setTimeout(loadPresets,250); return;}
 	delete pJson["0"];
 	var cn = "";
-	var arr = Object.entries(pJson);
-	arr.sort(cmpP);
+	var arr = Object.entries(pJson).sort(cmpP);
 	pQL = [];
 	var is = [];
 	pNum = 0;
@@ -708,7 +705,7 @@ ${inforow("Environment",i.arch + " " + i.core + " (" + i.lwip + ")")}
 </table>`;
 	gId('kv').innerHTML = cn;
 	//  update all sliders in Info
-	for (let sd of (gId('kv').getElementsByClassName('sliderdisplay')||[])) {
+	for (let sd of (d.querySelectorAll('#kv .sliderdisplay')||[])) {
 		let s = sd.previousElementSibling;
 		if (s) updateTrail(s);
 	}
@@ -1289,18 +1286,19 @@ function updateSelectedFx()
 		selectedEffect.classList.add('selected');
 		setEffectParameters(selectedFx);
 		// hide non-0D effects if segment only has 1 pixel (0D)
-		var fxs = parent.querySelectorAll('.lstI');
-		for (const fx of fxs) {
-			if (!fx.dataset.opt) continue;
-			let opts = fx.dataset.opt.split(";");
-			if (fx.dataset.id>0) {
-				if (segLmax==0) fx.classList.add('hide'); // none of the segments selected (hide all effects)
-				else {
-					if ((segLmax==1 && (!opts[3] || opts[3].indexOf("0")<0)) || (!isM && opts[3] && ((opts[3].indexOf("2")>=0 && opts[3].indexOf("1")<0)))) fx.classList.add('hide');
-					else fx.classList.remove('hide');
+		parent.querySelectorAll('.lstI').forEach((fx)=>{
+			let ds = fx.dataset;
+			if (ds.opt) {
+				let opts = ds.opt.split(";");
+				if (ds.id>0) {
+					if (segLmax==0) fx.classList.add('hide'); // none of the segments selected (hide all effects)
+					else {
+						if ((segLmax==1 && (!opts[3] || opts[3].indexOf("0")<0)) || (!isM && opts[3] && ((opts[3].indexOf("2")>=0 && opts[3].indexOf("1")<0)))) fx.classList.add('hide');
+						else fx.classList.remove('hide');
+					}
 				}
 			}
-		}
+		});
 		// hide 2D mapping and/or sound simulation options
 		var selectedName = selectedEffect.querySelector(".lstIname").innerText;
 		var segs = gId("segcont").querySelectorAll(`div[data-map="map2D"]`);
@@ -1320,7 +1318,7 @@ function displayRover(i,s)
 
 function cmpP(a, b)
 {
-	if (!a[1].n) return (a[0] > b[0]);
+	if (cfg.comp.idsort || !a[1].n) return (parseInt(a[0]) > parseInt(b[0]));
 	// sort playlists first, followed by presets with characters and last presets with special 1st character
 	const c = a[1].n.charCodeAt(0);
 	const d = b[1].n.charCodeAt(0);
@@ -1542,7 +1540,8 @@ function setEffectParameters(idx)
 	var cslLabel = '';
 	var sep = '';
 	var cslCnt = 0, oCsel = csel;
-	for (let i=0; i<gId("csl").querySelectorAll("button"); i++) {
+//	for (let i=0; i<gId("csl").querySelectorAll("button"); i++) {
+	d.querySelectorAll("#csl button").forEach((e,i)=>{
 		var btn = gId("csl" + i);
 		// if no controlDefined or coOnOff has a value
 		if (coOnOff.length>i && coOnOff[i] != "") {
@@ -1572,7 +1571,7 @@ function setEffectParameters(idx)
 			btn.dataset.hide = 1;
 			btn.innerHTML = `${i+1}`; // name hidden buttons 1..3 for * palettes
 		}
-	}
+	});
 	gId("cslLabel").innerHTML = cslLabel;
 	if (cslLabel!=="") gId("cslLabel").classList.remove("hide");
 	else               gId("cslLabel").classList.add("hide");
@@ -1817,12 +1816,12 @@ function makePlSel(el, incPl=false)
 {
 	var plSelContent = "";
 	delete pJson["0"];	// remove filler preset
-	var arr = Object.entries(pJson);
-	for (var a of arr) {
+	Object.entries(pJson).sort(cmpP).forEach((a)=>{
 		var n = a[1].n ? a[1].n : "Preset " + a[0];
-		if (!incPl && a[1].playlist && a[1].playlist.ps) continue; // remove playlists, sub-playlists not yet supported
-		plSelContent += `<option value="${a[0]}" ${a[0]==el?"selected":""}>${n}</option>`
-	}
+		if (cfg.comp.idsort) n = a[0] + ' ' + n;
+		if (!(!incPl && a[1].playlist && a[1].playlist.ps)) // skip playlists, sub-playlists not yet supported
+			plSelContent += `<option value="${a[0]}" ${a[0]==el?"selected":""}>${n}</option>`;
+	});
 	return plSelContent;
 }
 
@@ -1831,21 +1830,19 @@ function refreshPlE(p)
 	var plEDiv = gId(`ple${p}`);
 	if (!plEDiv) return;
 	var content = "<div class=\"first c\">Playlist entries</div>";
-	for (var i = 0; i < plJson[p].ps.length; i++) {
-		content += makePlEntry(p,i);
-	}
+	plJson[p].ps.forEach((e,i)=>{content += makePlEntry(p,i);});
+
 	content += `<div class="hrz"></div>`;
 	plEDiv.innerHTML = content;
 	var dels = plEDiv.getElementsByClassName("btn-pl-del");
 	if (dels.length < 2) dels[0].style.display = "none";
 
-	var sels = gId(`seg${p+100}`).getElementsByClassName("sel");
-	for (var i of sels) {
+	d.querySelectorAll(`#seg${p+100} .sel`).forEach((i)=>{
 		if (i.dataset.val) {
 			if (parseInt(i.dataset.val) > 0) i.value = i.dataset.val;
 			else plJson[p].ps[i.dataset.index] = parseInt(i.value);
 		}
-	}
+	});
 }
 
 // p: preset ID, i: ps index
@@ -2720,58 +2717,94 @@ function hideModes(txt)
 	}
 }
 */
-function search(f,l=null)
-{
-	f.nextElementSibling.style.display=(f.value!=='')?'block':'none';
-	if (!l) return;
-	var el = gId(l).querySelectorAll('.lstI');
+function search(field, listId = null) {
+	field.nextElementSibling.style.display = (field.value !== '') ? 'block' : 'none';
+	if (!listId) return;
+
+	// clear filter if searching in fxlist
+	if (listId === 'fxlist' && field.value !== '') {
+		gId("filters").querySelectorAll("input[type=checkbox]").forEach((e) => { e.checked = false; });
+	}
+
+	// do not search if filter is active
+	if (gId("filters").querySelectorAll("input[type=checkbox]:checked").length) return;
+
+	const listItems = gId(listId).querySelectorAll('.lstI');
 	// filter list items but leave (Default & Solid) always visible
-	for (i = (l==='pcont'?0:1); i < el.length; i++) {
-		var it = el[i];
-		var itT = it.querySelector('.lstIname').innerText.toUpperCase();
-		it.style.display = (itT.indexOf(f.value.toUpperCase())<0) ? 'none' : '';
+	for (i = (listId === 'pcont' ? 0 : 1); i < listItems.length; i++) {
+		const listItem = listItems[i];
+		const listItemName = listItem.querySelector('.lstIname').innerText.toUpperCase();
+		const searchIndex = listItemName.indexOf(field.value.toUpperCase());
+		listItem.style.display = (searchIndex < 0) ? 'none' : '';
+		listItem.dataset.searchIndex = searchIndex;
 	}
+
+	// sort list items by search index and name
+	const sortedListItems = Array.from(listItems).sort((a, b) => {
+		const aSearchIndex = parseInt(a.dataset.searchIndex);
+		const bSearchIndex = parseInt(b.dataset.searchIndex);
+
+		if (aSearchIndex !== bSearchIndex) {
+			return aSearchIndex - bSearchIndex;
+		}
+
+		const aName = a.querySelector('.lstIname').innerText.toUpperCase();
+		const bName = b.querySelector('.lstIname').innerText.toUpperCase();
+
+		return aName.localeCompare(bName);
+	});
+	sortedListItems.forEach(item => {
+		gId(listId).append(item);
+	});
 }
 
-function clean(c)
-{
-	c.style.display='none';
-	var i=c.previousElementSibling;
-	i.value='';
-	i.focus();
-	i.dispatchEvent(new Event('input'));
-	if (i.parentElement.id=='fxFind') {
-		gId("filters").querySelectorAll("input[type=checkbox]").forEach((e)=>{e.checked=false;});
-	}
+function clean(clearButton) {
+	clearButton.style.display = 'none';
+	const inputField = clearButton.previousElementSibling;
+	inputField.value = '';
+	search(inputField, clearButton.parentElement.nextElementSibling.id);
 }
 
-function filterFocus(e)
-{
-	let t = e.explicitOriginalTarget;
-	let f = gId("filters");
+function initFilters() {
+	gId("filters").querySelectorAll("input[type=checkbox]").forEach((e) => { e.checked = false; });
+}
+
+function filterFocus(e) {
+	const f = gId("filters");
 	if (e.type === "focus") f.classList.remove('fade');	// immediately show (still has transition)
 	// compute sticky top (with delay for transition)
-	setTimeout(()=>{
-		let sti = parseInt(getComputedStyle(d.documentElement).getPropertyValue('--sti')) + (e.type === "focus" ? 1 : -1) * f.offsetHeight;
-		sCol('--sti', sti+"px");
+	setTimeout(() => {
+		const sti = parseInt(getComputedStyle(d.documentElement).getPropertyValue('--sti')) + (e.type === "focus" ? 1 : -1) * f.offsetHeight;
+		sCol('--sti', sti + "px");
 	}, 252);
 	if (e.type === "blur") {
-		do {
-			if (t.id && (t.id === "fxFind")) { setTimeout(()=>{t.firstElementChild.focus();},150); return; }
-			t = t.parentElement;
-		} while (t.tagName !== "BODY");
-		setTimeout(()=>{f.classList.add('fade');},255);	// wait with hiding
+		setTimeout(() => {
+			if (e.target === document.activeElement && document.hasFocus()) return;
+			// do not hide if filter is active
+			if (gId("filters").querySelectorAll("input[type=checkbox]:checked").length) return;
+			f.classList.add('fade');
+		}, 255);	// wait with hiding
 	}
 }
 
-function filterFx(o)
-{
-	if (!o) return;
-	let i = gId('fxFind').children[0];
-	i.value=!o.checked?'':o.dataset.flt;
-	i.focus();
-	i.dispatchEvent(new Event('input'));
-	gId("filters").querySelectorAll("input[type=checkbox]").forEach((e)=>{if(e!==o)e.checked=false;});
+function filterFx() {
+	const inputField = gId('fxFind').children[0];
+	inputField.value = '';
+	inputField.focus();
+	clean(inputField.nextElementSibling);
+	const listItems = gId("fxlist").querySelectorAll('.lstI');
+	for (let i = 1; i < listItems.length; i++) {
+		const listItem = listItems[i];
+		const listItemName = listItem.querySelector('.lstIname').innerText;
+		let hide = false;
+		gId("filters").querySelectorAll("input[type=checkbox]").forEach((e) => { if (e.checked && !listItemName.includes(e.dataset.flt)) hide = true; });
+		listItem.style.display = hide ? 'none' : '';
+	}
+}
+
+function preventBlur(e) {
+	if (e.target === gId("fxFind").children[0] || e.target === gId("filters")) return;
+	e.preventDefault();
 }
 
 // make sure "dur" and "transition" are arrays with at least the length of "ps"

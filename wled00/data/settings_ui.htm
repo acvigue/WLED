@@ -28,7 +28,8 @@
 			"hdays": "Enable custom Holidays list",
 			"fxdef": "Use effect default parameters",
 			"on": "Power button preset override for On",
-			"off": "Power button preset override for Off"
+			"off": "Power button preset override for Off",
+			"idsort": "Sort presets by ID"
 		},
 		"theme":{
 			"alpha": {
@@ -208,9 +209,11 @@
 			let path = l.pathname;
 			let paths = path.slice(1,path.endsWith('/')?-1:undefined).split("/");
 			if (paths.length > 2) {
+				paths.pop(); // remove "ui"
+				paths.pop(); // remove "settings"
 				locproto = l.protocol;
 				loc = true;
-				locip = l.hostname + (l.port ? ":" + l.port : "") + "/" + paths[0];
+				locip = l.hostname + (l.port ? ":" + l.port : "") + "/" + paths.join('/');
 			}
 		}
 		loadJS(getURL('/settings/s.js?p=3'), false);	// If we set async false, file is loaded and executed, then next statement is processed
@@ -281,6 +284,10 @@
 		<span class="l"></span>: <input type="checkbox" id="comp_seglen" class="agi cb"><br>
 		<span class="l"></span>: <input type="checkbox" id="comp_segpwr" class="agi cb"><br>
 		<span class="l"></span>: <input type="checkbox" id="comp_segexp" class="agi cb"><br>
+		<span class="l"></span>: <input type="checkbox" id="comp_fxdef" class="agi cb"><br>
+		<span class="l"></span>: <input type="number" min=0 max=250 step=1 id="comp_on" class="agi"><br>
+		<span class="l"></span>: <input type="number" min=0 max=250 step=1 id="comp_off" class="agi"><br>
+		<span class="l"></span>: <input type="checkbox" id="comp_idsort" class="agi cb"><br>
 		I hate dark mode: <input type="checkbox" id="dm" onchange="UI()"><br>
 		<span id="idonthateyou" style="display:none"><i>Why would you? </i>&#x1F97A;<br></span>
 		<span class="l"></span>: <input type="number" min=0.0 max=1.0 step=0.01 id="theme_alpha_tab" class="agi"><br>
