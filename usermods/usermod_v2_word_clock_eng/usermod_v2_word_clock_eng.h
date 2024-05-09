@@ -12,17 +12,19 @@
  *
  * active: enable/disable usermod
  * diplayItIs: enable/disable display of "It Is" on the clock.
+ * displayUrHot: enable/disable display of "Ur Hot" on the clock.
  */
 
 class WordClockUsermodEng : public Usermod {
-   private:
+private:
     uint8_t lastMinute = 99;
 
     bool usermodActive = false;
     bool displayItIs = false;
+    bool displayUrHot = false;
     String output = "";
 
-// defines for mask sizes
+    // defines for mask sizes
 #define maskSizeLeds 256
 
     String letters =
@@ -30,13 +32,13 @@ class WordClockUsermodEng : public Usermod {
         "OSIXTWELVETFOURAFIVESEVENMEIGHTENINETENTTHREECELEVENINOTHENAFTERNOONMORNINGSATENIGHTEVENINGCANDTCOLDCOOLETWARMURAHOT";
 
     // overall mask to define which LEDs are on
-    int maskLedsOn[maskSizeLeds] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    int maskLedsOn[maskSizeLeds] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
     // update the display
     void updateDisplay(uint8_t hour, uint8_t minutes) {
@@ -57,102 +59,103 @@ class WordClockUsermodEng : public Usermod {
                 mintemp = 60 - mintemp;
             }
             switch (mintemp) {
-                case 0:
-                    output += " HALF";
-                    break;
-                case 1:
-                    output += " ONE";
-                    break;
-                case 2:
-                    output += " TWO";
-                    break;
-                case 3:
-                    output += " THREE";
-                    break;
-                case 4:
-                    output += " FOUR";
-                    break;
-                case 5:
-                    output += " FIVE";
-                    break;
-                case 6:
-                    output += " SIX";
-                    break;
-                case 7:
-                    output += " SEVEN";
-                    break;
-                case 8:
-                    output += " EIGHT";
-                    break;
-                case 9:
-                    output += " NINE";
-                    break;
-                case 10:
-                    output += " TEN";
-                    break;
-                case 11:
-                    output += " ELEVEN";
-                    break;
-                case 12:
-                    output += " TWELVE";
-                    break;
-                case 13:
-                    output += " THIRTEEN";
-                    break;
-                case 14:
-                    output += " FOURTEEN";
-                    break;
-                case 15:
-                    output += " A QUARTER";
-                    break;
-                case 16:
-                    output += " SIXTEEN";
-                    break;
-                case 17:
-                    output += " SEVENTEEN";
-                    break;
-                case 18:
-                    output += " EIGHTEEN";
-                    break;
-                case 19:
-                    output += " NINETEEN";
-                    break;
-                case 20:
-                    output += " TWENTY";
-                    break;
-                case 21:
-                    output += " TWENTY ONE";
-                    break;
-                case 22:
-                    output += " TWENTY TWO";
-                    break;
-                case 23:
-                    output += " TWENTY THREE";
-                    break;
-                case 24:
-                    output += " TWENTY FOUR";
-                    break;
-                case 25:
-                    output += " TWENTY FIVE";
-                    break;
-                case 26:
-                    output += " TWENTY SIX";
-                    break;
-                case 27:
-                    output += " TWENTY SEVEN";
-                    break;
-                case 28:
-                    output += " TWENTY EIGHT";
-                    break;
-                case 29:
-                    output += " TWENTY NINE";
-                    break;
+            case 0:
+                output += " HALF";
+                break;
+            case 1:
+                output += " ONE";
+                break;
+            case 2:
+                output += " TWO";
+                break;
+            case 3:
+                output += " THREE";
+                break;
+            case 4:
+                output += " FOUR";
+                break;
+            case 5:
+                output += " FIVE";
+                break;
+            case 6:
+                output += " SIX";
+                break;
+            case 7:
+                output += " SEVEN";
+                break;
+            case 8:
+                output += " EIGHT";
+                break;
+            case 9:
+                output += " NINE";
+                break;
+            case 10:
+                output += " TEN";
+                break;
+            case 11:
+                output += " ELEVEN";
+                break;
+            case 12:
+                output += " TWELVE";
+                break;
+            case 13:
+                output += " THIRTEEN";
+                break;
+            case 14:
+                output += " FOURTEEN";
+                break;
+            case 15:
+                output += " A QUARTER";
+                break;
+            case 16:
+                output += " SIXTEEN";
+                break;
+            case 17:
+                output += " SEVENTEEN";
+                break;
+            case 18:
+                output += " EIGHTEEN";
+                break;
+            case 19:
+                output += " NINETEEN";
+                break;
+            case 20:
+                output += " TWENTY";
+                break;
+            case 21:
+                output += " TWENTY ONE";
+                break;
+            case 22:
+                output += " TWENTY TWO";
+                break;
+            case 23:
+                output += " TWENTY THREE";
+                break;
+            case 24:
+                output += " TWENTY FOUR";
+                break;
+            case 25:
+                output += " TWENTY FIVE";
+                break;
+            case 26:
+                output += " TWENTY SIX";
+                break;
+            case 27:
+                output += " TWENTY SEVEN";
+                break;
+            case 28:
+                output += " TWENTY EIGHT";
+                break;
+            case 29:
+                output += " TWENTY NINE";
+                break;
             }
 
             // add past or to
             if (minutes <= 30) {
                 output += " PAST";
-            } else {
+            }
+            else {
                 output += " TO";
                 hour++;
             }
@@ -161,63 +164,72 @@ class WordClockUsermodEng : public Usermod {
         // add hour
         if (hour != 0) {
             switch (hour % 12) {
-                case 0:
-                    output += " TWELVE";
-                    break;
-                case 1:
-                    output += " ONE";
-                    break;
-                case 2:
-                    output += " TWO";
-                    break;
-                case 3:
-                    output += " THREE";
-                    break;
-                case 4:
-                    output += " FOUR";
-                    break;
-                case 5:
-                    output += " FIVE";
-                    break;
-                case 6:
-                    output += " SIX";
-                    break;
-                case 7:
-                    output += " SEVEN";
-                    break;
-                case 8:
-                    output += " EIGHT";
-                    break;
-                case 9:
-                    output += " NINE";
-                    break;
-                case 10:
-                    output += " TEN";
-                    break;
-                case 11:
-                    output += " ELEVEN";
-                    break;
+            case 0:
+                output += " TWELVE";
+                break;
+            case 1:
+                output += " ONE";
+                break;
+            case 2:
+                output += " TWO";
+                break;
+            case 3:
+                output += " THREE";
+                break;
+            case 4:
+                output += " FOUR";
+                break;
+            case 5:
+                output += " FIVE";
+                break;
+            case 6:
+                output += " SIX";
+                break;
+            case 7:
+                output += " SEVEN";
+                break;
+            case 8:
+                output += " EIGHT";
+                break;
+            case 9:
+                output += " NINE";
+                break;
+            case 10:
+                output += " TEN";
+                break;
+            case 11:
+                output += " ELEVEN";
+                break;
             }
-        } else {
+        }
+        else {
             output += " MIDNIGHT";
         }
 
         if (output.indexOf("MIDNIGHT") == -1) {
             if (hour < 5) {
                 output += " AT NIGHT";
-            } else if (hour < 12) {
+            }
+            else if (hour < 12) {
                 output += " IN THE MORNING";
-            } else if (hour < 17) {
+            }
+            else if (hour < 17) {
                 output += " IN THE AFTERNOON";
-            } else if (hour < 21) {
+            }
+            else if (hour < 21) {
                 output += " IN THE EVENING";
-            } else {
+            }
+            else {
                 output += " AT NIGHT";
             }
         }
 
         if (!displayItIs) {
             output = output.substring(1);
+        }
+
+        if (displayUrHot) {
+            output += "UR HOT";
         }
 
         Serial.println(output);
@@ -250,7 +262,7 @@ class WordClockUsermodEng : public Usermod {
         }
     }
 
-   public:
+public:
     void setup() {}
 
     void connected() {}
@@ -274,6 +286,7 @@ class WordClockUsermodEng : public Usermod {
         JsonObject top = root.createNestedObject(F("WordClockUsermodEng"));
         top[F("active")] = usermodActive;
         top[F("displayItIs")] = displayItIs;
+        top[F("displayUrHot")] = displayUrHot;
     }
 
     bool readFromConfig(JsonObject& root) {
@@ -283,6 +296,7 @@ class WordClockUsermodEng : public Usermod {
 
         configComplete &= getJsonValue(top[F("active")], usermodActive);
         configComplete &= getJsonValue(top[F("displayItIs")], displayItIs);
+        configComplete &= getJsonValue(top[F("displayUrHot")], displayUrHot);
 
         return configComplete;
     }
