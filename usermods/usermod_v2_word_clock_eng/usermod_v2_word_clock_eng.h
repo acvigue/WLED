@@ -229,7 +229,7 @@ private:
         }
 
         if (displayUrHot) {
-            output += "UR HOT";
+            output += " AND UR HOT";
         }
 
         Serial.println(output);
