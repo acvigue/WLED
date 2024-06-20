@@ -47,8 +47,8 @@ void onMqttConnect(bool sessionPresent)
 
   usermods.onMqttConnect(sessionPresent);
 
-  doPublishMqtt = true;
   DEBUG_PRINTLN(F("MQTT ready"));
+  publishMqtt();
 }
 
 
@@ -76,7 +76,7 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
   if (index + len >= total) { // at end
     payloadStr[total] = '\0'; // terminate c style string
   } else {
-    DEBUG_PRINTLN(F("Partial packet received."));
+    DEBUG_PRINTLN(F("MQTT partial packet received."));
     return; // process next packet
   }
   DEBUG_PRINTLN(payloadStr);
@@ -103,20 +103,17 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
     colorFromDecOrHexString(col, payloadStr);
     colorUpdated(CALL_MODE_DIRECT_CHANGE);
   } else if (strcmp_P(topic, PSTR("/api")) == 0) {
-    if (!requestJSONBufferLock(15)) {
-      delete[] payloadStr;
-      payloadStr = nullptr;
-      return;
+    if (requestJSONBufferLock(15)) {
+      if (payloadStr[0] == '{') { //JSON API
+        deserializeJson(*pDoc, payloadStr);
+        deserializeState(pDoc->as<JsonObject>());
+      } else { //HTTP API
+        String apireq = "win"; apireq += '&'; // reduce flash string usage
+        apireq += payloadStr;
+        handleSet(nullptr, apireq);
+      }
+      releaseJSONBufferLock();
     }
-    if (payloadStr[0] == '{') { //JSON API
-      deserializeJson(doc, payloadStr);
-      deserializeState(doc.as<JsonObject>());
-    } else { //HTTP API
-      String apireq = "win"; apireq += '&'; // reduce flash string usage
-      apireq += payloadStr;
-      handleSet(nullptr, apireq);
-    }
-    releaseJSONBufferLock();
   } else if (strlen(topic) != 0) {
     // non standard topic, check with usermods
     usermods.onMqttMessage(topic, payloadStr);
@@ -131,13 +128,12 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
 
 void publishMqtt()
 {
-  doPublishMqtt = false;
   if (!WLED_MQTT_CONNECTED) return;
   DEBUG_PRINTLN(F("Publish MQTT"));
 
   #ifndef USERMOD_SMARTNEST
   char s[10];
-  char subuf[38];
+  char subuf[48];
 
   sprintf_P(s, PSTR("%u"), bri);
   strlcpy(subuf, mqttDeviceTopic, 33);

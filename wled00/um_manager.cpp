@@ -19,7 +19,7 @@ bool UsermodManager::handleButton(uint8_t b) {
 bool UsermodManager::getUMData(um_data_t **data, uint8_t mod_id) {
   for (byte i = 0; i < numMods; i++) {
     if (mod_id > 0 && ums[i]->getId() != mod_id) continue;  // only get data form requested usermod if provided
-    if (ums[i]->getUMData(data)) return true;               // if usermod does provide data return immediately (only one usermod can povide data at one time)
+    if (ums[i]->getUMData(data)) return true;               // if usermod does provide data return immediately (only one usermod can provide data at one time)
   }
   return false;
 }
@@ -34,11 +34,19 @@ bool UsermodManager::readFromConfig(JsonObject& obj)    {
   }
   return allComplete;
 }
+#ifndef WLED_DISABLE_MQTT
 void UsermodManager::onMqttConnect(bool sessionPresent) { for (byte i = 0; i < numMods; i++) ums[i]->onMqttConnect(sessionPresent); }
 bool UsermodManager::onMqttMessage(char* topic, char* payload) {
   for (byte i = 0; i < numMods; i++) if (ums[i]->onMqttMessage(topic, payload)) return true;
   return false;
 }
+#endif
+#ifndef WLED_DISABLE_ESPNOW
+bool UsermodManager::onEspNowMessage(uint8_t* sender, uint8_t* payload, uint8_t len) {
+  for (byte i = 0; i < numMods; i++) if (ums[i]->onEspNowMessage(sender, payload, len)) return true;
+  return false;
+}
+#endif
 void UsermodManager::onUpdateBegin(bool init) { for (byte i = 0; i < numMods; i++) ums[i]->onUpdateBegin(init); } // notify usermods that update is to begin
 void UsermodManager::onStateChange(uint8_t mode) { for (byte i = 0; i < numMods; i++) ums[i]->onStateChange(mode); } // notify usermods that WLED state changed
 
