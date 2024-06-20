@@ -207,16 +207,13 @@ private:
         }
 
         if (output.indexOf("MIDNIGHT") == -1) {
-            if (hour < 5) {
-                output += " AT NIGHT";
-            }
-            else if (hour < 12) {
+            if (hour < 12) {
                 output += " IN THE MORNING";
             }
-            else if (hour < 17) {
+            else if (hour < 16) {
                 output += " IN THE AFTERNOON";
             }
-            else if (hour < 21) {
+            else if (hour < 20) {
                 output += " IN THE EVENING";
             }
             else {
@@ -231,8 +228,6 @@ private:
         if (displayUrHot) {
             output += " AND UR HOT";
         }
-
-        Serial.println(output);
 
         int lastLetterPos = 0;
         String processingString = output;
