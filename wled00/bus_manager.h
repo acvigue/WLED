@@ -37,7 +37,7 @@ struct BusConfig {
   uint8_t milliAmpsPerLed;
   uint16_t milliAmpsMax;
 
-  BusConfig(uint8_t busType, uint8_t* ppins, uint16_t pstart, uint16_t len = 1, uint8_t pcolorOrder = COL_ORDER_GRB, bool rev = false, uint8_t skip = 0, byte aw=RGBW_MODE_MANUAL_ONLY, uint16_t clock_kHz=0U, bool dblBfr=false, uint8_t maPerLed=55, uint16_t maMax=ABL_MILLIAMPS_DEFAULT)
+  BusConfig(uint8_t busType, uint8_t* ppins, uint16_t pstart, uint16_t len = 1, uint8_t pcolorOrder = COL_ORDER_GRB, bool rev = false, uint8_t skip = 0, byte aw=RGBW_MODE_MANUAL_ONLY, uint16_t clock_kHz=0U, bool dblBfr=false, uint8_t maPerLed=LED_MILLIAMPS_DEFAULT, uint16_t maMax=ABL_MILLIAMPS_DEFAULT)
   : count(len)
   , start(pstart)
   , colorOrder(pcolorOrder)
@@ -129,7 +129,7 @@ class Bus {
     virtual uint32_t getPixelColor(uint16_t pix) { return 0; }
     virtual void     setBrightness(uint8_t b)    { _bri = b; };
     virtual uint8_t  getPins(uint8_t* pinArray)  { return 0; }
-    virtual uint16_t getLength()                 { return _len; }
+    virtual uint16_t getLength()                 { return isOk() ? _len : 0; }
     virtual void     setColorOrder(uint8_t co)   {}
     virtual uint8_t  getColorOrder()             { return COL_ORDER_RGB; }
     virtual uint8_t  skippedLeds()               { return 0; }
@@ -157,7 +157,7 @@ class Bus {
     static  bool hasWhite(uint8_t type) {
       if ((type >= TYPE_WS2812_1CH && type <= TYPE_WS2812_WWA) ||
           type == TYPE_SK6812_RGBW || type == TYPE_TM1814 || type == TYPE_UCS8904 ||
-          type == TYPE_FW1906 || type == TYPE_WS2805) return true; // digital types with white channel
+          type == TYPE_FW1906 || type == TYPE_WS2805 || type == TYPE_SM16825) return true; // digital types with white channel
       if (type > TYPE_ONOFF && type <= TYPE_ANALOG_5CH && type != TYPE_ANALOG_3CH) return true; // analog types with white channel
       if (type == TYPE_NET_DDP_RGBW || type == TYPE_NET_ARTNET_RGBW) return true; // network types with white channel
       return false;
@@ -166,13 +166,15 @@ class Bus {
     static  bool hasCCT(uint8_t type) {
       if (type == TYPE_WS2812_2CH_X3 || type == TYPE_WS2812_WWA ||
           type == TYPE_ANALOG_2CH    || type == TYPE_ANALOG_5CH ||
-          type == TYPE_FW1906        || type == TYPE_WS2805 ) return true;
+          type == TYPE_FW1906        || type == TYPE_WS2805     ||
+          type == TYPE_SM16825) return true;
       return false;
     }
-    static int16_t getCCT() { return _cct; }
+    static inline int16_t getCCT() { return _cct; }
     static void setCCT(int16_t cct) {
       _cct = cct;
     }
+    static inline uint8_t getCCTBlend() { return _cctBlend; }
     static void setCCTBlend(uint8_t b) {
       if (b > 100) b = 100;
       _cctBlend = (b * 127) / 100;
@@ -355,6 +357,7 @@ class BusManager {
 
     //utility to get the approx. memory usage of a given BusConfig
     static uint32_t memUsage(BusConfig &bc);
+    static uint32_t memUsage(unsigned channels, unsigned count, unsigned buses = 1);
     static uint16_t currentMilliamps(void) { return _milliAmpsUsed; }
     static uint16_t ablMilliampsMax(void)  { return _milliAmpsMax; }
 
@@ -363,6 +366,9 @@ class BusManager {
 
     //do not call this method from system context (network callback)
     static void removeAll();
+
+    static void on(void);
+    static void off(void);
 
     static void show();
     static bool canAllShow();
@@ -391,7 +397,11 @@ class BusManager {
     static ColorOrderMap colorOrderMap;
     static uint16_t _milliAmpsUsed;
     static uint16_t _milliAmpsMax;
+    static uint8_t _parallelOutputs;
 
+    #ifdef ESP32_DATA_IDLE_HIGH
+    static void    esp32RMTInvertIdle();
+    #endif
     static uint8_t getNumVirtualBusses() {
       int j = 0;
       for (int i=0; i<numBusses; i++) if (busses[i]->getType() >= TYPE_NET_DDP_RGB && busses[i]->getType() < 96) j++;

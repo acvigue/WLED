@@ -93,7 +93,7 @@ void doublePressAction(uint8_t b)
 bool isButtonPressed(uint8_t i)
 {
   if (btnPin[i]<0) return false;
-  uint8_t pin = btnPin[i];
+  unsigned pin = btnPin[i];
 
   switch (buttonType[i]) {
     case BTN_TYPE_NONE:
@@ -171,20 +171,20 @@ void handleAnalog(uint8_t b)
 {
   static uint8_t oldRead[WLED_MAX_BUTTONS] = {0};
   static float filteredReading[WLED_MAX_BUTTONS] = {0.0f};
-  uint16_t rawReading;    // raw value from analogRead, scaled to 12bit
+  unsigned rawReading;    // raw value from analogRead, scaled to 12bit
 
   DEBUG_PRINT(F("Analog: Reading button ")); DEBUG_PRINTLN(b);
 
   #ifdef ESP8266
   rawReading = analogRead(A0) << 2;   // convert 10bit read to 12bit
   #else
-  if ((btnPin[b] < 0) || (digitalPinToAnalogChannel(btnPin[b]) < 0)) return; // pin must support analog ADC - newer esp32 frameworks throw lots of warnings otherwise
+  if ((btnPin[b] < 0) /*|| (digitalPinToAnalogChannel(btnPin[b]) < 0)*/) return; // pin must support analog ADC - newer esp32 frameworks throw lots of warnings otherwise
   rawReading = analogRead(btnPin[b]); // collect at full 12bit resolution
   #endif
   yield();                            // keep WiFi task running - analog read may take several millis on ESP8266
 
   filteredReading[b] += POT_SMOOTHING * ((float(rawReading) / 16.0f) - filteredReading[b]); // filter raw input, and scale to [0..255]
-  uint16_t aRead = max(min(int(filteredReading[b]), 255), 0);                               // squash into 8bit
+  unsigned aRead = max(min(int(filteredReading[b]), 255), 0);                               // squash into 8bit
   if(aRead <= POT_SENSITIVITY) aRead = 0;                                                   // make sure that 0 and 255 are used
   if(aRead >= 255-POT_SENSITIVITY) aRead = 255;
 
@@ -260,7 +260,7 @@ void handleButton()
   if (strip.isUpdating() && (now - lastRun < ANALOG_BTN_READ_CYCLE+1)) return; // don't interfere with strip update (unless strip is updating continuously, e.g. very long strips)
   lastRun = now;
 
-  for (uint8_t b=0; b<WLED_MAX_BUTTONS; b++) {
+  for (unsigned b=0; b<WLED_MAX_BUTTONS; b++) {
     #ifdef ESP8266
     if ((btnPin[b]<0 && !(buttonType[b] == BTN_TYPE_ANALOG || buttonType[b] == BTN_TYPE_ANALOG_INVERTED)) || buttonType[b] == BTN_TYPE_NONE) continue;
     #else
@@ -358,69 +358,35 @@ void handleButton()
   }
 }
 
-// If enabled, RMT idle level is set to HIGH when off
-// to prevent leakage current when using an N-channel MOSFET to toggle LED power
-#ifdef ESP32_DATA_IDLE_HIGH
-void esp32RMTInvertIdle()
-{
-  bool idle_out;
-  for (uint8_t u = 0; u < BusManager::getNumBusses(); u++)
-  {
-    if (u > 7) return; // only 8 RMT channels, TODO: ESP32 variants have less RMT channels
-    Bus *bus = BusManager::getBus(u);
-    if (!bus || bus->getLength()==0 || !IS_DIGITAL(bus->getType()) || IS_2PIN(bus->getType())) continue;
-    //assumes that bus number to rmt channel mapping stays 1:1
-    rmt_channel_t ch = static_cast<rmt_channel_t>(u);
-    rmt_idle_level_t lvl;
-    rmt_get_idle_level(ch, &idle_out, &lvl);
-    if (lvl == RMT_IDLE_LEVEL_HIGH) lvl = RMT_IDLE_LEVEL_LOW;
-    else if (lvl == RMT_IDLE_LEVEL_LOW) lvl = RMT_IDLE_LEVEL_HIGH;
-    else continue;
-    rmt_set_idle_level(ch, idle_out, lvl);
-  }
-}
-#endif
-
+// handleIO() happens *after* handleTransitions() (see wled.cpp) which may change bri/briT but *before* strip.service()
+// where actual LED painting occurrs
+// this is important for relay control and in the event of turning off on-board LED
 void handleIO()
 {
   handleButton();
 
-  //set relay when LEDs turn on
-  if (strip.getBrightness())
-  {
+  // if we want to control on-board LED (ESP8266) or relay we have to do it here as the final show() may not happen until
+  // next loop() cycle
+  if (strip.getBrightness()) {
     lastOnTime = millis();
-    if (offMode)
-    {
-      #ifdef ESP32_DATA_IDLE_HIGH
-      esp32RMTInvertIdle();
-      #endif
+    if (offMode) {
+      BusManager::on();
       if (rlyPin>=0) {
         pinMode(rlyPin, rlyOpenDrain ? OUTPUT_OPEN_DRAIN : OUTPUT);
         digitalWrite(rlyPin, rlyMde);
       }
       offMode = false;
     }
-  } else if (millis() - lastOnTime > 600)
-  {
+  } else if (millis() - lastOnTime > 600 && !strip.needsUpdate()) {
+    // for turning LED or relay off we need to wait until strip no longer needs updates (strip.trigger())
     if (!offMode) {
-      #ifdef ESP8266
-      // turn off built-in LED if strip is turned off
-      // this will break digital bus so will need to be re-initialised on On
-      PinOwner ledPinOwner = pinManager.getPinOwner(LED_BUILTIN);
-      if (!strip.isOffRefreshRequired() && (ledPinOwner == PinOwner::None || ledPinOwner == PinOwner::BusDigital)) {
-        pinMode(LED_BUILTIN, OUTPUT);
-        digitalWrite(LED_BUILTIN, HIGH);
-      }
-      #endif
-      #ifdef ESP32_DATA_IDLE_HIGH
-      esp32RMTInvertIdle();
-      #endif
+      BusManager::off();
       if (rlyPin>=0) {
         pinMode(rlyPin, rlyOpenDrain ? OUTPUT_OPEN_DRAIN : OUTPUT);
         digitalWrite(rlyPin, !rlyMde);
       }
+      offMode = true;
     }
-    offMode = true;
   }
 }
 
