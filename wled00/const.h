@@ -339,6 +339,11 @@ static_assert(WLED_MAX_BUSSES <= 32, "WLED_MAX_BUSSES exceeds hard limit");
 #define TYPE_NET_ARTNET_RGBW     89            //network ArtNet RGB bus (master broadcast bus, unused)
 #define TYPE_VIRTUAL_MAX         95
 
+//Serial bus types (directly controlled via UART) (96-111)
+#define TYPE_SERIAL_MIN          96
+#define TYPE_GOVEE_SERIAL        96            //Govee RGBCCT serial protocol (3 pixels, RGB+CCT)
+#define TYPE_SERIAL_MAX         111
+
 //Color orders
 #define COL_ORDER_GRB             0           //GRB(w),defaut
 #define COL_ORDER_RGB             1           //common for WS2811
