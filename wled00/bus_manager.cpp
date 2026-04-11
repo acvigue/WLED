@@ -844,6 +844,9 @@ void BusGoveeSerial::setPixelColor(unsigned pix, uint32_t c) {
   // Apply auto white calculation if enabled
   if (_hasWhite) c = autoWhiteCalc(c);
 
+  // Apply brightness now (same as BusDigital) so all values are pre-scaled
+  c = color_fade(c, _bri, true);
+
   // Handle reversed
   unsigned actualPix = _reversed ? (GOVEE_NUM_PIXELS - 1 - pix) : pix;
 
@@ -852,6 +855,7 @@ void BusGoveeSerial::setPixelColor(unsigned pix, uint32_t c) {
   _pixelData[actualPix][2] = B(c);
 
   // Calculate WW/CW now while Bus::_cct is still valid (it gets reset before show())
+  // Brightness is already applied to c, so WW/CW will be correctly scaled
   uint8_t w = W(c);
   if (w > 0) {
     Bus::calculateCCT(c, _pixelData[actualPix][3], _pixelData[actualPix][4]);
@@ -889,12 +893,12 @@ void BusGoveeSerial::buildPacket() {
     uint8_t* segment = &_packet[10 + i * GOVEE_SEGMENT_SIZE];
     memset(segment, 0, GOVEE_SEGMENT_SIZE);
 
-    // Apply brightness to RGB and pre-calculated WW/CW values
-    uint8_t r  = scale8(_pixelData[i][0], _bri);
-    uint8_t g  = scale8(_pixelData[i][1], _bri);
-    uint8_t b  = scale8(_pixelData[i][2], _bri);
-    uint8_t ww = scale8(_pixelData[i][3], _bri);  // WW pre-calculated in setPixelColor
-    uint8_t cw = scale8(_pixelData[i][4], _bri);  // CW pre-calculated in setPixelColor
+    // All values already have brightness applied in setPixelColor()
+    uint8_t r  = _pixelData[i][0];
+    uint8_t g  = _pixelData[i][1];
+    uint8_t b  = _pixelData[i][2];
+    uint8_t ww = _pixelData[i][3];
+    uint8_t cw = _pixelData[i][4];
 
     // RGB and CCT use separate diodes and can run simultaneously
     // RGB values (bytes 0-5)
@@ -908,7 +912,7 @@ void BusGoveeSerial::buildPacket() {
     segment[4] = b16 >> 8;
     segment[5] = b16 & 0xFF;
 
-    // CCT/White values (bytes 10-19) - WW and CW were calculated from color temperature in setPixelColor
+    // CCT/White values (bytes 10-19)
     if (ww > 0 || cw > 0) {
       // Bytes 10-11: CW (16-bit BE)
       uint16_t cw16 = (uint16_t)cw * 257;
