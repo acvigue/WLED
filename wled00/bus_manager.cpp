@@ -789,6 +789,199 @@ void BusNetwork::cleanup() {
 }
 
 // ***************************************************************************
+// BusGoveeSerial - Govee RGBCCT serial protocol (115200 baud, 72-byte packets)
+// ***************************************************************************
+
+const uint8_t BusGoveeSerial::GOVEE_HEADER[10] = {0x55, 0x43, 0x00, 0x53, 0x01, 0x04, 0x7B, 0xDE, 0xF7, 0x9F};
+
+BusGoveeSerial::BusGoveeSerial(const BusConfig &bc)
+: Bus(bc.type, bc.start, bc.autoWhite, GOVEE_NUM_PIXELS, bc.reversed)  // Always 3 pixels
+, _pin(255)
+, _lastShow(0)
+#ifdef ARDUINO_ARCH_ESP32
+, _serial(nullptr)
+#endif
+{
+  if (bc.type != TYPE_GOVEE_SERIAL) return;
+
+  uint8_t txPin = bc.pins[0];
+  if (!PinManager::allocatePin(txPin, true, PinOwner::BusSerial)) {
+    DEBUGBUS_PRINTLN(F("Govee: TX pin allocation failed"));
+    return;
+  }
+
+  _pin = txPin;
+  memset(_pixelData, 0, sizeof(_pixelData));
+  memset(_packet, 0, sizeof(_packet));
+
+  // Copy header to packet
+  memcpy(_packet, GOVEE_HEADER, 10);
+
+  #ifdef ARDUINO_ARCH_ESP32
+  // Use Serial1 with remapped TX pin (RX disabled with -1)
+  _serial = &Serial1;
+  _serial->begin(GOVEE_BAUD, SERIAL_8N1, -1, _pin);
+  #else // ESP8266
+  // ESP8266 Serial1 TX is fixed to GPIO2
+  if (_pin != 2) {
+    DEBUGBUS_PRINTLN(F("Govee: ESP8266 only supports GPIO2 for Serial1 TX"));
+    PinManager::deallocatePin(_pin, PinOwner::BusSerial);
+    _pin = 255;
+    return;
+  }
+  Serial1.begin(GOVEE_BAUD);
+  #endif
+
+  _hasRgb = true;
+  _hasWhite = true;
+  _hasCCT = true;
+  _valid = true;
+
+  DEBUGBUS_PRINTF_P(PSTR("Govee: Initialized on pin %u\n"), _pin);
+}
+
+void BusGoveeSerial::setPixelColor(unsigned pix, uint32_t c) {
+  if (!_valid || pix >= GOVEE_NUM_PIXELS) return;
+
+  // autoWhiteCalc populates ww/cw via the internal _hasCCT branch
+  uint8_t ww = 0, cw = 0;
+  if (_hasWhite) c = autoWhiteCalc(c, ww, cw);
+
+  // Apply brightness (same as BusDigital). color_fade only scales c, so scale ww/cw manually.
+  c = color_fade(c, _bri, true);
+  ww = scale8(ww, _bri);
+  cw = scale8(cw, _bri);
+
+  unsigned actualPix = _reversed ? (GOVEE_NUM_PIXELS - 1 - pix) : pix;
+  _pixelData[actualPix][0] = R(c);
+  _pixelData[actualPix][1] = G(c);
+  _pixelData[actualPix][2] = B(c);
+  _pixelData[actualPix][3] = ww;
+  _pixelData[actualPix][4] = cw;
+}
+
+uint32_t BusGoveeSerial::getPixelColor(unsigned pix) const {
+  if (!_valid || pix >= GOVEE_NUM_PIXELS) return 0;
+  unsigned actualPix = _reversed ? (GOVEE_NUM_PIXELS - 1 - pix) : pix;
+  // Return approximate white as max of WW and CW (since we can't return both)
+  uint8_t w = _pixelData[actualPix][3] > _pixelData[actualPix][4]
+            ? _pixelData[actualPix][3] : _pixelData[actualPix][4];
+  return RGBW32(_pixelData[actualPix][0],
+                _pixelData[actualPix][1],
+                _pixelData[actualPix][2],
+                w);
+}
+
+uint8_t BusGoveeSerial::calculateChecksum(const uint8_t* data, size_t len) {
+  uint16_t sum = 0;
+  for (size_t i = 0; i < len; i++) {
+    sum += data[i];
+  }
+  return sum & 0xFF;
+}
+
+void BusGoveeSerial::buildPacket() {
+  // Header already in place (bytes 0-9)
+
+  // Build 3 LED segments (20 bytes each, starting at byte 10)
+  for (unsigned i = 0; i < GOVEE_NUM_PIXELS; i++) {
+    uint8_t* segment = &_packet[10 + i * GOVEE_SEGMENT_SIZE];
+    memset(segment, 0, GOVEE_SEGMENT_SIZE);
+
+    // All values already have brightness applied in setPixelColor()
+    uint8_t r  = _pixelData[i][0];
+    uint8_t g  = _pixelData[i][1];
+    uint8_t b  = _pixelData[i][2];
+    uint8_t ww = _pixelData[i][3];
+    uint8_t cw = _pixelData[i][4];
+
+    // RGB and CCT use separate diodes and can run simultaneously
+    // RGB values (bytes 0-5)
+    uint16_t r16 = (uint16_t)r * 257;
+    segment[0] = r16 >> 8;
+    segment[1] = r16 & 0xFF;
+    uint16_t g16 = (uint16_t)g * 257;
+    segment[2] = g16 >> 8;
+    segment[3] = g16 & 0xFF;
+    uint16_t b16 = (uint16_t)b * 257;
+    segment[4] = b16 >> 8;
+    segment[5] = b16 & 0xFF;
+
+    // CCT/White values (bytes 10-19)
+    if (ww > 0 || cw > 0) {
+      // Bytes 10-11: CW (16-bit BE)
+      uint16_t cw16 = (uint16_t)cw * 257;
+      segment[10] = cw16 >> 8;
+      segment[11] = cw16 & 0xFF;
+      // Bytes 12-13: CW duplicate
+      segment[12] = segment[10];
+      segment[13] = segment[11];
+      // Bytes 14-15: zeros (already zeroed)
+      // Bytes 16-17: WW (16-bit BE)
+      uint16_t ww16 = (uint16_t)ww * 257;
+      segment[16] = ww16 >> 8;
+      segment[17] = ww16 & 0xFF;
+      // Bytes 18-19: WW duplicate
+      segment[18] = segment[16];
+      segment[19] = segment[17];
+    }
+  }
+
+  // Byte 70: padding (already 0)
+
+  // Byte 71: checksum
+  _packet[71] = calculateChecksum(_packet, 71);
+}
+
+bool BusGoveeSerial::canShow() const {
+  if (!_valid) return true;
+  return (millis() - _lastShow) >= GOVEE_MIN_INTERVAL_MS;
+}
+
+void BusGoveeSerial::show() {
+  if (!_valid) return;
+  if (!canShow()) return; // drop the frame; latest _pixelData will ship on the next tick
+  _lastShow = millis();
+  buildPacket();
+
+  #ifdef ARDUINO_ARCH_ESP32
+  if (_serial) {
+    _serial->write(_packet, GOVEE_PACKET_SIZE);
+  }
+  #else
+  Serial1.write(_packet, GOVEE_PACKET_SIZE);
+  #endif
+}
+
+size_t BusGoveeSerial::getPins(uint8_t* pinArray) const {
+  if (!_valid) return 0;
+  if (pinArray) pinArray[0] = _pin;
+  return 1;
+}
+
+void BusGoveeSerial::cleanup() {
+  if (_pin != 255) {
+    #ifdef ARDUINO_ARCH_ESP32
+    if (_serial) {
+      _serial->end();
+      _serial = nullptr;
+    }
+    #else
+    Serial1.end();
+    #endif
+    PinManager::deallocatePin(_pin, PinOwner::BusSerial);
+    _pin = 255;
+  }
+  _valid = false;
+}
+
+std::vector<LEDType> BusGoveeSerial::getLEDTypes() {
+  return {
+    {TYPE_GOVEE_SERIAL, "S", PSTR("Govee Serial RGBCCT")},
+  };
+}
+
+// ***************************************************************************
 
 #ifdef WLED_ENABLE_HUB75MATRIX
 #warning "HUB75 driver enabled (experimental)"
@@ -1182,6 +1375,8 @@ size_t BusConfig::memUsage() const {
   size_t mem = (count + skipAmount) * 8; // 8 bytes per pixel for segment + global buffer
   if (Bus::isVirtual(type)) {
     mem += sizeof(BusNetwork) + (count * Bus::getNumberOfChannels(type)); // note: getNumberOfChannels() includes CCT channel if applicable but virtual buses do not use CCT channel buffer
+  } else if (Bus::isSerial(type)) {
+    mem += sizeof(BusGoveeSerial);
   } else if (Bus::isDigital(type)) {
     // if any of digital buses uses I2S, there is additional common I2S DMA buffer not accounted for here
     mem += sizeof(BusDigital) + PolyBus::memUsage(count + skipAmount, iType);
@@ -1214,6 +1409,8 @@ int BusManager::add(const BusConfig &bc, bool placeholder) {
   } else if (Bus::isHub75(bc.type)) {
     busses.push_back(make_unique<BusHub75Matrix>(bc));
 #endif
+  } else if (Bus::isSerial(bc.type)) {
+    busses.push_back(make_unique<BusGoveeSerial>(bc));
   } else if (Bus::isDigital(bc.type)) {
     busses.push_back(make_unique<BusDigital>(bc));
   } else if (Bus::isOnOff(bc.type)) {
@@ -1244,7 +1441,7 @@ String BusManager::getLEDTypesJSONString() {
   json += LEDTypesToJson(BusOnOff::getLEDTypes());
   json += LEDTypesToJson(BusPwm::getLEDTypes());
   json += LEDTypesToJson(BusNetwork::getLEDTypes());
-  //json += LEDTypesToJson(BusVirtual::getLEDTypes());
+  json += LEDTypesToJson(BusGoveeSerial::getLEDTypes());
   #ifdef WLED_ENABLE_HUB75MATRIX
   json += LEDTypesToJson(BusHub75Matrix::getLEDTypes());
   #endif

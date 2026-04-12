@@ -155,6 +155,7 @@ class Bus {
     inline  bool     isOnOff() const                            { return isOnOff(_type); }
     inline  bool     isPWM() const                              { return isPWM(_type); }
     inline  bool     isVirtual() const                          { return isVirtual(_type); }
+    inline  bool     isSerial() const                           { return isSerial(_type); }
     inline  bool     is16bit() const                            { return is16bit(_type); }
     virtual bool     isPlaceholder() const                      { return false; }
     inline  bool     mustRefresh() const                        { return mustRefresh(_type); }
@@ -171,7 +172,7 @@ class Bus {
     inline  bool     containsPixel(uint16_t pix) const          { return pix >= _start && pix < _start + _len; }
 
     static inline std::vector<LEDType> getLEDTypes()            { return {{TYPE_NONE, "", PSTR("None")}}; } // not used. just for reference for derived classes
-    static constexpr size_t   getNumberOfPins(uint8_t type)     { return isVirtual(type) ? 4 : isPWM(type) ? numPWMPins(type) : isHub75(type) ? 5 : is2Pin(type) + 1; } // credit @PaoloTK; for HUB75 the 5 slots store config params (panelW, panelH, chain, rows, cols), not GPIO pins
+    static constexpr size_t   getNumberOfPins(uint8_t type)     { return isVirtual(type) ? 4 : isPWM(type) ? numPWMPins(type) : isHub75(type) ? 5 : isSerial(type) ? 1 : is2Pin(type) + 1; } // credit @PaoloTK; for HUB75 the 5 slots store config params (panelW, panelH, chain, rows, cols), not GPIO pins
     static constexpr size_t   getNumberOfChannels(uint8_t type) { return hasWhite(type) + 3*hasRGB(type) + hasCCT(type); }
     static constexpr bool hasRGB(uint8_t type) {
       return !((type >= TYPE_WS2812_1CH && type <= TYPE_WS2812_WWA) || type == TYPE_ANALOG_1CH || type == TYPE_ANALOG_2CH || type == TYPE_ONOFF);
@@ -181,13 +182,14 @@ class Bus {
               type == TYPE_SK6812_RGBW || type == TYPE_TM1814 || type == TYPE_UCS8904 ||
               type == TYPE_FW1906 || type == TYPE_WS2805 || type == TYPE_SM16825 ||        // digital types with white channel
               (type > TYPE_ONOFF && type <= TYPE_ANALOG_5CH && type != TYPE_ANALOG_3CH) || // analog types with white channel
-              type == TYPE_NET_DDP_RGBW || type == TYPE_NET_ARTNET_RGBW;                   // network types with white channel
+              type == TYPE_NET_DDP_RGBW || type == TYPE_NET_ARTNET_RGBW ||                 // network types with white channel
+              type == TYPE_GOVEE_SERIAL;                                                    // serial types with white channel
     }
     static constexpr bool hasCCT(uint8_t type) {
       return  type == TYPE_WS2812_2CH_X3 || type == TYPE_WS2812_WWA ||
               type == TYPE_ANALOG_2CH    || type == TYPE_ANALOG_5CH ||
               type == TYPE_FW1906        || type == TYPE_WS2805     ||
-              type == TYPE_SM16825;
+              type == TYPE_SM16825       || type == TYPE_GOVEE_SERIAL;
     }
     static constexpr bool  isTypeValid(uint8_t type)  { return (type > 15 && type < 128); }
     static constexpr bool  isDigital(uint8_t type)    { return (type >= TYPE_DIGITAL_MIN && type <= TYPE_DIGITAL_MAX) || is2Pin(type); }
@@ -196,6 +198,7 @@ class Bus {
     static constexpr bool  isPWM(uint8_t type)        { return (type >= TYPE_ANALOG_MIN && type <= TYPE_ANALOG_MAX); }
     static constexpr bool  isVirtual(uint8_t type)    { return (type >= TYPE_VIRTUAL_MIN && type <= TYPE_VIRTUAL_MAX); }
     static constexpr bool  isHub75(uint8_t type)      { return (type >= TYPE_HUB75MATRIX_MIN && type <= TYPE_HUB75MATRIX_MAX); }
+    static constexpr bool  isSerial(uint8_t type)     { return (type >= TYPE_SERIAL_MIN && type <= TYPE_SERIAL_MAX); }
     static constexpr bool  is16bit(uint8_t type)      { return type == TYPE_UCS8903 || type == TYPE_UCS8904 || type == TYPE_SM16825; }
     static constexpr bool  mustRefresh(uint8_t type)  { return type == TYPE_TM1814; }
     static constexpr int   numPWMPins(uint8_t type)   { return (type - 40); }
@@ -414,6 +417,44 @@ class BusPlaceholder : public Bus {
     uint8_t _milliAmpsPerLed;
     uint16_t _milliAmpsMax;
     String _text;
+};
+
+class BusGoveeSerial : public Bus {
+  public:
+    BusGoveeSerial(const BusConfig &bc);
+    ~BusGoveeSerial() { cleanup(); }
+
+    void     setPixelColor(unsigned pix, uint32_t c) override;
+    uint32_t getPixelColor(unsigned pix) const override;
+    size_t   getPins(uint8_t* pinArray = nullptr) const override;
+    size_t   getBusSize() const override { return sizeof(BusGoveeSerial); }
+    bool     canShow() const override;
+    void     show() override;
+    void     cleanup();
+
+    static std::vector<LEDType> getLEDTypes();
+
+  private:
+    static const uint8_t GOVEE_HEADER[10];
+    static const unsigned GOVEE_BAUD = 115200;
+    static const unsigned GOVEE_NUM_PIXELS = 3;
+    static const unsigned GOVEE_PACKET_SIZE = 72;
+    static const unsigned GOVEE_SEGMENT_SIZE = 20;
+    // 50 Hz packet cadence. Wire time at 115200 baud is ~6.25 ms per 72-byte
+    // packet; a 20 ms floor keeps the controller's framing in lock and
+    // prevents back-to-back writes from blocking on the UART.
+    static const unsigned GOVEE_MIN_INTERVAL_MS = 20;
+
+    uint8_t  _pin;
+    uint8_t  _pixelData[GOVEE_NUM_PIXELS][5];  // 3 pixels x RGB + WW + CW
+    uint8_t  _packet[GOVEE_PACKET_SIZE];
+    unsigned long _lastShow;
+    #ifdef ARDUINO_ARCH_ESP32
+    HardwareSerial* _serial;
+    #endif
+
+    void buildPacket();
+    static uint8_t calculateChecksum(const uint8_t* data, size_t len);
 };
 
 #ifdef WLED_ENABLE_HUB75MATRIX
